@@ -1,6 +1,7 @@
 from reusepatterns.prototypes import PrototypeMixin
 from reusepatterns.observer import Subject, Observer
 import jsonpickle
+from rwsgiorm.unitofwork import DomainObject
 class User:
     def __init__(self, name):
         self.name = name
@@ -8,7 +9,7 @@ class User:
 class Teacher(User):
     pass
 
-class Student(User):
+class Student(User, DomainObject):
     
     def __init__(self, name):
         self.courses = []

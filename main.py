@@ -4,11 +4,15 @@ from models import TrainingSite, BaseSerializer, SmsNotifier, EmailNotifier
 from logging_mod import Logger, debug
 from wsgiref.simple_server import make_server
 from rwsgi.rwsgicbv import ListView, CreateView
+from rwsgiorm.unitofwork import UnitOfWork
+from mappers import MapperRegistry
 
 site = TrainingSite()
 logger = Logger('main')
 email_notifier = EmailNotifier()
 sms_notifier = SmsNotifier()
+UnitOfWork.new_current()
+UnitOfWork.get_current().set_mapper_registry(MapperRegistry) #
 
 def main_view(request):
     logger.log('Список курсов')
@@ -60,8 +64,12 @@ class CategoryListView(ListView):
     template_name = 'category_list.html'
 
 class StudentListView(ListView):
-    queryset = site.students
+    # queryset = site.students
     template_name = 'student_list.html'
+
+    def get_queryset(self):
+        mapper = MapperRegistry.get_current_mapper('student')
+        return mapper.all()
 
 class AuthorListView(ListView):
     queryset = site.author
@@ -74,6 +82,8 @@ class StudentCreateView(CreateView):
         name = Application.decode_value(name)
         new_obj = site.create_user('student', name)
         site.students.append(new_obj)
+        new_obj.mark_new()
+        UnitOfWork.get_current().commit()
 
 class AddStudentByCourseCreateView(CreateView):
     template_name = 'add_student.html'
@@ -118,6 +128,7 @@ application = Application(urlpatterns, fronts_controller)
 def copy_course(request):
     request_params = request['request_params']
     name = request_params['name']
+    name = Application.decode_value(name)
     old_course = site.get_course(name)
     if old_course:
         new_name = f'copy_{name}'
